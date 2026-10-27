@@ -97,6 +97,9 @@ test('Nemotron 3.5 Super uses the supplied NVIDIA parameters with complete repor
 test('independent worker persists progress and reports, and fails when no evidence exists', async () => {
   const testDirectory = mkdtempSync(path.join(process.cwd(), '.local', 'worker-test-'));
   process.env.IDEA_LAB_DATA_DIR = testDirectory;
+  const previousTursoUrl = process.env.TURSO_DATABASE_URL;
+  const previousTursoToken = process.env.TURSO_AUTH_TOKEN;
+  delete process.env.TURSO_DATABASE_URL; delete process.env.TURSO_AUTH_TOKEN;
   const { createRun, getRun, listRuns, db } = await import('../src/lib/db');
   const lib = path.join(__dirname, '..', 'src', 'lib');
   const preload = path.join(testDirectory, 'preload.cjs');
@@ -138,5 +141,9 @@ test('independent worker persists progress and reports, and fails when no eviden
     assert.equal(failed?.status, 'failed'); assert.equal(failed?.report, null);
     assert.match(failed?.error || '', /No sources/);
     assert.deepEqual(failed?.warnings, ['Fixture discovery unavailable.']);
-  } finally { await db.$disconnect(); delete process.env.IDEA_LAB_DATA_DIR; }
+  } finally {
+    await db.$disconnect(); delete process.env.IDEA_LAB_DATA_DIR;
+    if (previousTursoUrl !== undefined) process.env.TURSO_DATABASE_URL = previousTursoUrl;
+    if (previousTursoToken !== undefined) process.env.TURSO_AUTH_TOKEN = previousTursoToken;
+  }
 });

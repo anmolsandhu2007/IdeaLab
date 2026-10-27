@@ -1,27 +1,16 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import { mkdirSync } from 'node:fs';
-import path from 'node:path';
+import { databaseAdapter, initializeDatabase } from './database-config';
 import type { Run, IdeaInput } from './schema';
 
 const cache = globalThis as unknown as { ideaDb?: PrismaClient; ideaDbReady?: Promise<void> };
-const dataDirectory = process.env.IDEA_LAB_DATA_DIR || path.join(process.cwd(), 'data');
-mkdirSync(dataDirectory, { recursive: true });
-const adapter = new PrismaBetterSqlite3({ url: `file:${path.join(dataDirectory, 'idea-lab.db')}` });
+const { adapter, remote } = databaseAdapter();
 export const db = cache.ideaDb ??= new PrismaClient({ adapter });
 
 export async function ready() {
-  await (cache.ideaDbReady ??= (async () => {
-    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS ResearchRun (
-      id TEXT PRIMARY KEY, title TEXT NOT NULL, status TEXT NOT NULL,
-      stage TEXT NOT NULL, progress INTEGER NOT NULL DEFAULT 0,
-      input TEXT NOT NULL, sources TEXT NOT NULL DEFAULT '[]', report TEXT,
-      warnings TEXT NOT NULL DEFAULT '[]', error TEXT,
-      createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
-    )`);
-    await db.$queryRawUnsafe('PRAGMA journal_mode = WAL');
-    await db.$queryRawUnsafe('PRAGMA busy_timeout = 5000');
-  })());
+  await (cache.ideaDbReady ??= initializeDatabase(db, remote).catch(error => {
+    cache.ideaDbReady = undefined;
+    throw error;
+  }));
 }
 
 type Row = Awaited<ReturnType<typeof db.researchRun.findFirst>>;

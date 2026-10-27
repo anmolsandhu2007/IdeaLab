@@ -6,7 +6,7 @@ import type { Finding, IdeaInput, Run, Source } from '@/lib/schema';
 import { sampleRun } from '@/lib/sample';
 import { DEFAULT_MODEL } from '@/lib/models';
 
-type Config = { configured: boolean; model: string; search: string; storage: string; mode: string };
+type Config = { configured: boolean; model: string; search: string; storage: string; mode: string; authRequired?: boolean };
 const examples = [
   { label: 'A tool for founders', idea: 'A research workspace that helps independent founders organize customer interviews, identify recurring pain points, and link product decisions to evidence.', customer: 'Independent founders and early-stage startup teams' },
   { label: 'A local service', idea: 'A service that connects apartment residents with reliable local repair technicians, with transparent pricing and scheduled arrival windows.', customer: 'Apartment residents in Indian cities' },
@@ -18,6 +18,7 @@ type Tab = typeof tabs[number];
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json', ...options?.headers } });
   const json = await response.json();
+  if (response.status === 401) window.location.assign('/login');
   if (!response.ok) throw new Error(json.error || 'The request could not be completed.');
   return json;
 }
@@ -65,6 +66,10 @@ export default function Workspace() {
 
   function openRun(run: Run) { selectedId.current = run.id; setSelected(run); setView('report'); setTab('Overview'); setError(''); }
   function newIdea() { setView('new'); selectedId.current = null; setSelected(null); setError(''); }
+  async function logout() {
+    try { await api('/api/auth/logout', { method: 'POST' }); window.location.replace('/login'); }
+    catch { setError('Could not sign out. Please try again.'); }
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError('');
     if (!config?.configured) { setSettings(true); return; }
@@ -111,7 +116,7 @@ export default function Workspace() {
     </aside>
 
     <main className="main">
-      <header className="topbar"><div className="breadcrumb">Workspace<ChevronRight size={14} /><span>{view === 'new' ? 'New validation' : view === 'history' ? 'Research history' : isSample ? 'Sample report' : 'Validation report'}</span></div><div className="topbar-actions"><span className="local-pill"><span />Local workspace</span><button className="icon-button" aria-label="How Idea Lab works" onClick={() => setHelp(true)}><CircleHelp size={19} /></button></div></header>
+      <header className="topbar"><div className="breadcrumb">Workspace<ChevronRight size={14} /><span>{view === 'new' ? 'New validation' : view === 'history' ? 'Research history' : isSample ? 'Sample report' : 'Validation report'}</span></div><div className="topbar-actions"><span className="local-pill"><span />{config?.authRequired ? 'Private workspace' : 'Local workspace'}</span>{config?.authRequired && <button className="text-button" onClick={logout}>Sign out</button>}<button className="icon-button" aria-label="How Idea Lab works" onClick={() => setHelp(true)}><CircleHelp size={19} /></button></div></header>
       <div className="content">
         {error && <div role="alert" className="notice error"><TriangleAlert size={18} /><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError('')}><X size={16} /></button></div>}
         {view === 'new' && <>
@@ -215,5 +220,5 @@ function SettingsDialog({ config, onClose, onSave }: { config: Config | null; on
     catch (err) { setError(err instanceof Error ? err.message : 'Could not save settings.'); }
     finally { setBusy(false); }
   }
-  return <Dialog title="Workspace settings" onClose={onClose}><div className="provider-card"><span className="provider-mark">N</span><div><strong>NVIDIA-hosted models</strong><p>Nemotron preferred · Gemma supported by model ID</p></div><span className={`kind-pill ${config?.configured ? 'observed' : 'neutral'}`}>{config?.configured ? 'Key configured' : 'Setup needed'}</span></div><p className="dialog-intro">Use a NVIDIA Developer API key with an endpoint available to your account. Free prototype access has model-specific availability and limits.</p><form onSubmit={save}><label htmlFor="nvidia-key">NVIDIA API key</label><input id="nvidia-key" type="password" autoComplete="off" spellCheck={false} required={!config?.configured} placeholder={config?.configured ? 'Key configured — leave blank to keep it' : 'nvapi-…'} value={key} onChange={e => setKey(e.target.value)} /><p className="field-hint">Saved only in this server’s memory until restart. Never returned to the browser. For persistence, use NVIDIA_API_KEY in .env.local.</p><label htmlFor="model">Model ID</label><input id="model" value={model} onChange={e => setModel(e.target.value)} required spellCheck={false} /><p className="field-hint">Use the exact nvidia/… or google/… ID from an accessible NVIDIA endpoint. Saving does not verify access; the first research run does.</p><a className="source-external" href="https://build.nvidia.com/" target="_blank" rel="noopener noreferrer">Open NVIDIA API catalog<ExternalLink size={13} /></a><div className="settings-facts"><div><span>Database</span><strong>SQLite · on this computer</strong></div><div><span>Search discovery</span><strong>{config?.search === 'tavily' ? 'Tavily API' : 'Public Bing RSS · experimental'}</strong></div><div><span>Deployment</span><strong>Local · single user</strong></div></div>{error && <div className="notice error" role="alert">{error}</div>}<button className="primary-button full-width" disabled={busy} type="submit">{busy ? <LoaderCircle size={16} className="spin" /> : <Check size={16} />}Save configuration</button></form></Dialog>;
+  return <Dialog title="Workspace settings" onClose={onClose}><div className="provider-card"><span className="provider-mark">N</span><div><strong>NVIDIA-hosted models</strong><p>Nemotron preferred · Gemma supported by model ID</p></div><span className={`kind-pill ${config?.configured ? 'observed' : 'neutral'}`}>{config?.configured ? 'Key configured' : 'Setup needed'}</span></div><p className="dialog-intro">Use a NVIDIA Developer API key with an endpoint available to your account. Free prototype access has model-specific availability and limits.</p><form onSubmit={save}><label htmlFor="nvidia-key">NVIDIA API key</label><input id="nvidia-key" type="password" autoComplete="off" spellCheck={false} required={!config?.configured} placeholder={config?.configured ? 'Key configured — leave blank to keep it' : 'nvapi-…'} value={key} onChange={e => setKey(e.target.value)} /><p className="field-hint">Saved only in this server’s memory until restart. Never returned to the browser. For persistence, use NVIDIA_API_KEY in .env.local.</p><label htmlFor="model">Model ID</label><input id="model" value={model} onChange={e => setModel(e.target.value)} required spellCheck={false} /><p className="field-hint">Use the exact nvidia/… or google/… ID from an accessible NVIDIA endpoint. Saving does not verify access; the first research run does.</p><a className="source-external" href="https://build.nvidia.com/" target="_blank" rel="noopener noreferrer">Open NVIDIA API catalog<ExternalLink size={13} /></a><div className="settings-facts"><div><span>Database</span><strong>{config?.storage || 'Local SQLite'}</strong></div><div><span>Search discovery</span><strong>{config?.search === 'tavily' ? 'Tavily API' : 'Public Bing RSS · experimental'}</strong></div><div><span>Deployment</span><strong>{config?.authRequired ? 'Private shared workspace' : 'Local · single user'}</strong></div></div>{error && <div className="notice error" role="alert">{error}</div>}<button className="primary-button full-width" disabled={busy} type="submit">{busy ? <LoaderCircle size={16} className="spin" /> : <Check size={16} />}Save configuration</button></form></Dialog>;
 }

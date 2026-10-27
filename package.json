@@ -2,16 +2,21 @@
   "name": "idea-lab",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": { "node": "24.x" },
   "scripts": {
     "dev": "node scripts/build-worker.mjs && next dev --hostname 127.0.0.1",
     "build": "prisma generate && node scripts/build-worker.mjs && next build",
-    "start": "next start --hostname 127.0.0.1",
+    "start": "next start --hostname 0.0.0.0",
     "db:generate": "prisma generate",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/test.mjs"
+    "test": "node scripts/test.mjs",
+    "test:deployment": "node scripts/test-deployment.mjs"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "@prisma/adapter-better-sqlite3": "7.8.0",
+    "@prisma/adapter-libsql": "7.8.0",
     "@prisma/client": "7.8.0",
     "cheerio": "1.2.0",
     "ipaddr.js": "2.3.0",
