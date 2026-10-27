@@ -1,0 +1,22 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model ResearchRun {
+  id        String @id
+  title     String
+  status    String
+  stage     String
+  progress  Int @default(0)
+  input     String
+  sources   String @default("[]")
+  report    String?
+  warnings  String @default("[]")
+  error     String?
+  createdAt String
+  updatedAt String
+}

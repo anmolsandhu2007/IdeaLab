@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS", "moduleResolution": "Node", "noEmit": false,
+    "incremental": false, "rootDir": ".", "outDir": ".local/runtime",
+    "plugins": [], "declaration": false, "allowJs": false
+  },
+  "include": ["scripts/worker.ts", "src/lib/**/*.ts", "tests/*.test.ts"],
+  "exclude": ["node_modules", ".local"]
+}
